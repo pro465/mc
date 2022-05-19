@@ -1,0 +1,5 @@
+use crate::vm::Vm;
+use std::io::{self, Write};
+pub const TRAP: &[fn(&mut Vm)] = &[
+    |v| std::io::stdout().write(&[v.reg[0]]).unwrap(),
+];
