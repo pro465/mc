@@ -15,7 +15,7 @@ fn main() {
         let origin = u16::from_be_bytes(origin) as usize;
         if let Err(e) = f.read_exact(&mut mem[origin..]) {
             if e.kind() != ErrorKind::UnexpectedEof {
-                Err(e).unwrap()
+                panic!("error reading file to load bytecode: {:?}", e);
             }
         }
     }
