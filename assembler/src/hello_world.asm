@@ -1,19 +1,9 @@
+.origin 00 00
+
 jmp 0 'start
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
-halt
+
+.b Hello, World!\x0A\x00
+
 'start
    put 1 0
    put 2 3

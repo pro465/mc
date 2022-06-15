@@ -30,14 +30,35 @@ fn main() {
 
     let mut labels = HashMap::new();
     let mut curr = 0;
+    let mut res = Vec::new();
+    let mut lines = s
+        .lines()
+        .filter(|l| !l.is_empty() && l.split_whitespace().count() > 0);
 
-    for l in s.lines() {
-        if l.is_empty() || l.split_whitespace().count() == 0 {
-            continue;
+    {
+        let l = lines.next().unwrap();
+        assert!(
+            l.starts_with(".origin "),
+            "could not find the .origin header at the start"
+        );
+
+        for x in l.split_whitespace().skip(1).take(2) {
+            let num = parse_hex_from_str(x);
+            res.push(num);
         }
+    }
 
+    for l in lines.clone() {
         if l.starts_with("'") {
             labels.insert(&l[1..], curr);
+        } else if l.starts_with('.') {
+            curr += if l.starts_with(".b ") {
+                unescape_and_write_bytes::<false>(&mut res, &l[3..])
+            } else if l.starts_with(".offset ") {
+                l[".offset ".len()..].parse().unwrap()
+            } else {
+                panic!()
+            }
         } else {
             let mut l = l.split_whitespace();
             let encoding = mnemonics[l.next().unwrap()];
@@ -52,13 +73,19 @@ fn main() {
             };
         }
     }
-    let mut res = vec![0; 2];
 
-    for l in s
-        .lines()
-        .filter(|l| !l.is_empty() && !l.starts_with("'") && l.split_whitespace().count() > 0)
-    {
-        instr(&mut res, &labels, &mnemonics, l);
+    for l in lines.filter(|l| !l.starts_with("'")) {
+        if l.starts_with('.') {
+            if l.starts_with(".b ") {
+                unescape_and_write_bytes::<true>(&mut res, &l[3..]);
+            } else if l.starts_with(".offset ") {
+                res.extend(std::iter::repeat(0).take(l[".offset ".len()..].parse().unwrap()));
+            } else {
+                panic!();
+            }
+        } else {
+            instr(&mut res, &labels, &mnemonics, l);
+        }
     }
 
     std::fs::write(a.next().unwrap_or_else(help), res).unwrap();
@@ -114,4 +141,56 @@ fn instr(
 
         res.push(next);
     }
+}
+
+fn unescape_and_write_bytes<const PUSH: bool>(res: &mut Vec<u8>, escaped: &str) -> u16 {
+    let mut bytes = escaped.bytes().enumerate();
+    let mut len = 0;
+
+    while let Some((i, b)) = bytes.next() {
+        let b = match b {
+            b'\\' => {
+                let (b, size) = unescape(&escaped[i + 1..]);
+                (0..size).for_each(|_| {
+                    bytes.next();
+                });
+                b
+            }
+            _ => b,
+        };
+
+        if PUSH {
+            res.push(b);
+        } else {
+            len += 1;
+        }
+    }
+
+    len
+}
+
+fn unescape(s: &str) -> (u8, usize) {
+    match s.bytes().next().unwrap() {
+        b'x' => (parse_hex_from_str(&s[1..]), 3),
+        b => (b, 1),
+    }
+}
+
+fn parse_hex_from_str(x: &str) -> u8 {
+    let x = x.as_bytes();
+    let f = |x| parse_hex(x).unwrap();
+
+    f(x[0]) * 0x10 | f(x[1])
+}
+
+fn parse_hex(x: u8) -> Result<u8, String> {
+    if !(b'0'..=b'9').contains(&x) && !(b'a'..=b'f').contains(&(x | 0x20)) {
+        return Err(format!("{:?} is not a valid hex digit", x));
+    };
+
+    Ok(if x <= b'9' {
+        x - b'0'
+    } else {
+        10 + ((x | 0x20) - b'a')
+    })
 }
