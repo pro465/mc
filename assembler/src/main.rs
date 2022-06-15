@@ -115,30 +115,23 @@ fn instr(
 
             idx.to_be_bytes()
         } else {
-            [l[2].parse().unwrap(), l[3].parse().unwrap()]
+            [parse_hex_from_str(l[2]), parse_hex_from_str(l[3])]
         });
 
         return;
     }
 
     let arg: u8 = if encoding != 0 {
-        l[1].parse().unwrap()
+        parse_hex(l[1].as_bytes()[0]).unwrap()
     } else {
         0
     };
-    let first = (encoding << 4) | (arg & 0xf);
 
+    let first = (encoding << 4) | (arg & 0xf);
     res.push(first);
 
     if encoding > 4 {
-        let next = l[2].parse().unwrap();
-
-        let next = if l.len() > 3 {
-            (next << 4) | (l[3].parse::<u8>().unwrap() & 0xf)
-        } else {
-            next
-        };
-
+        let next = parse_hex_from_str(l[2]);
         res.push(next);
     }
 }
